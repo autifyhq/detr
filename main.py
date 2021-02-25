@@ -30,6 +30,7 @@ def get_args_parser():
                         help='gradient clipping max norm')
 
     # Model parameters
+    parser.add_argument('--num_classes', default=None, type=int)
     parser.add_argument('--frozen_weights', type=str, default=None,
                         help="Path to the pretrained model. If set, only the mask head will be trained")
     # * Backbone
@@ -119,6 +120,12 @@ def main(args):
     np.random.seed(seed)
     random.seed(seed)
 
+    dataset_train = build_dataset(image_set='train', args=args)
+    dataset_val = build_dataset(image_set='val', args=args)
+
+    if args.num_classes is None:
+        args.num_classes = max(c['id'] for c in dataset_train.coco.cats.values())
+
     model, criterion, postprocessors = build_model(args)
     model.to(device)
 
@@ -139,9 +146,6 @@ def main(args):
     optimizer = torch.optim.AdamW(param_dicts, lr=args.lr,
                                   weight_decay=args.weight_decay)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, args.lr_drop)
-
-    dataset_train = build_dataset(image_set='train', args=args)
-    dataset_val = build_dataset(image_set='val', args=args)
 
     if args.distributed:
         sampler_train = DistributedSampler(dataset_train)
