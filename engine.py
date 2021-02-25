@@ -20,7 +20,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
     model.train()
     criterion.train()
     cats = data_loader.dataset.coco.cats
-    classes = [cats[i+1]['name'] for i in range(len(cats))]
+    classes = {c['id']:c['name'] for c in cats.values()}
 
     metric_logger = utils.MetricLogger(delimiter="  ", tb_prefix='train_', logger=logger, ssid=epoch*len(data_loader), classes=classes)
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -74,7 +74,7 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, out
     criterion.eval()
 
     cats = data_loader.dataset.coco.cats
-    classes = [cats[i]['name'] for i in range(len(cats))]
+    classes = {c['id']:c['name'] for c in cats.values()}
     metric_logger = utils.MetricLogger(delimiter="  ", tb_prefix='valid_', logger=logger, ssid=epoch*len(data_loader), classes=classes)
     metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Test:'

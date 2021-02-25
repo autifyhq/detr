@@ -38,7 +38,7 @@ def draw_outputs(samples, boxes, labels, classes, scores=None, thresh=0.3):
         if scores is not None and scores[i] < thresh:
             continue
         drw.rectangle(box, outline='red', width=2)
-        txt = classes[cls-1]
+        txt = classes[cls]
         if scores is not None:
             txt += ' ({})'.format(round(scores[i], 2))
         drw.text(box[:2], txt, 'green')
