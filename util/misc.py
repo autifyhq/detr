@@ -21,7 +21,7 @@ import torchvision
 if float(torchvision.__version__[:3]) < 0.7:
     from torchvision.ops import _new_empty_tensor
     from torchvision.ops.misc import _output_size
-
+from render import render_batch
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -156,16 +156,18 @@ def reduce_dict(input_dict, average=True):
 
 
 class MetricLogger(object):
-    def __init__(self, delimiter="\t", tb_prefix=None, logger=None, ssid=0):
+    def __init__(self, delimiter="\t", tb_prefix=None, logger=None, ssid=0, classes=None):
         self.meters = defaultdict(SmoothedValue)
         self.delimiter = delimiter
         self.logger = logger
         self.tb_prefix = tb_prefix
         self.last_batch = None
         self.ssid = ssid
+        self.is_main = is_main_process()
+        self.classes = classes
 
     def add_batch(self, samples, targets, outputs):
-        self.last_batch = (samples, targets, outputs)
+        self.last_batch = (samples.tensors, targets, outputs)
 
     def update(self, **kwargs):
         for k, v in kwargs.items():
@@ -198,10 +200,18 @@ class MetricLogger(object):
         self.meters[name] = meter
 
     def to_tensorboard(self, sid):
+        if not self.is_main:
+            return
         if self.tb_prefix is None:
             return
         for name, meter in self.meters.items():
             self.logger.add_scalar(self.tb_prefix + name, meter.value, sid + self.ssid)
+        if sid % 100 == 0:
+            samples, targets, outputs = self.last_batch
+            samples = samples*0.225+0.45
+            samples.clamp_(0, 1)
+            grid = render_batch(samples, targets, outputs, self.classes, 0.3)
+            self.logger.add_image('sample', grid, sid + self.ssid)
 
     def log_every(self, iterable, print_freq, header=None):
         i = 0

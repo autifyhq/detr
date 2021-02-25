@@ -19,7 +19,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     device: torch.device, epoch: int, max_norm: float = 0, logger=None):
     model.train()
     criterion.train()
-    metric_logger = utils.MetricLogger(delimiter="  ", tb_prefix='train_', logger=logger, ssid=epoch*len(data_loader))
+    cats = data_loader.dataset.coco.cats
+    classes = [cats[i+1]['name'] for i in range(len(cats))]
+
+    metric_logger = utils.MetricLogger(delimiter="  ", tb_prefix='train_', logger=logger, ssid=epoch*len(data_loader), classes=classes)
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
@@ -30,10 +33,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         outputs = model(samples)
-        metric_logger.add_batch(samples, targets, outputs)
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
+        metric_logger.add_batch(samples, targets, outputs)
 
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = utils.reduce_dict(loss_dict)
@@ -70,7 +73,9 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, out
     model.eval()
     criterion.eval()
 
-    metric_logger = utils.MetricLogger(delimiter="  ", tb_prefix='valid_', logger=logger, ssid=epoch*len(data_loader))
+    cats = data_loader.dataset.coco.cats
+    classes = [cats[i]['name'] for i in range(len(cats))]
+    metric_logger = utils.MetricLogger(delimiter="  ", tb_prefix='valid_', logger=logger, ssid=epoch*len(data_loader), classes=classes)
     metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Test:'
 
