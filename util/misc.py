@@ -156,9 +156,16 @@ def reduce_dict(input_dict, average=True):
 
 
 class MetricLogger(object):
-    def __init__(self, delimiter="\t"):
+    def __init__(self, delimiter="\t", tb_prefix=None, logger=None, ssid=0):
         self.meters = defaultdict(SmoothedValue)
         self.delimiter = delimiter
+        self.logger = logger
+        self.tb_prefix = tb_prefix
+        self.last_batch = None
+        self.ssid = ssid
+
+    def add_batch(self, samples, targets, outputs):
+        self.last_batch = (samples, targets, outputs)
 
     def update(self, **kwargs):
         for k, v in kwargs.items():
@@ -189,6 +196,12 @@ class MetricLogger(object):
 
     def add_meter(self, name, meter):
         self.meters[name] = meter
+
+    def to_tensorboard(self, sid):
+        if self.tb_prefix is None:
+            return
+        for name, meter in self.meters.items():
+            self.logger.add_scalar(self.tb_prefix + name, meter.value, sid + self.ssid)
 
     def log_every(self, iterable, print_freq, header=None):
         i = 0
@@ -223,6 +236,7 @@ class MetricLogger(object):
             data_time.update(time.time() - end)
             yield obj
             iter_time.update(time.time() - end)
+            self.to_tensorboard(i)
             if i % print_freq == 0 or i == len(iterable) - 1:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
